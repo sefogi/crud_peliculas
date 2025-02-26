@@ -1,161 +1,97 @@
-from typing import Union
+from typing import Union #Union es un metodo que se usa para especificar que un parametro puede ser de varios tipos de datos
 from fastapi import FastAPI, Body #Body es un metodo que se usa para recibir datos en el cuerpo de la peticion
-from pydantic import BaseModel
+from pydantic import BaseModel as bm #BaseModel es una clase que se usa para crear los schemas
+from pydantic import Field #Field es un metodo que se usa para especificar los datos que se piden en la peticion
+from typing import Optional, List #Optional es un metodo que se usa para especificar que un parametro es opcional y list es un metodo que se usa para especificar que un parametro es una lista
+import datetime #datetime es un modulo que se usa para trabajar con fechas y horas
 
 app = FastAPI()
 
-movies = [#bd de peliculas
-  {
-    "id": "1",
-    "title": "Inception",
-    "year": 2010,
-    "genre": "Sci-Fi", 
-    "category": "Movie",
-    "director": "Christopher Nolan",
-    "rating": 8.8
-  },
-  {
-    "id": "2",
-    "title": "The Shawshank Redemption",
-    "year": 1994,
-    "genre": "Drama",
-    "category": "Movie",
-    "director": "Frank Darabont",
-    "rating": 9.3
-  },
-  {
-    "id": "3", 
-    "title": "Breaking Bad",
-    "year": 2008,
-    "genre":"Crime", 
-    "category": "TV Show",
-    "director": "Vince Gilligan",
-    "rating": 9.5
-  },
-  {
-    "id": "4", 
-    "title": "Parasite",
-    "year": 2019,
-    "genre":  "Thriller",
-    "category":"Movie",
-    "director": "Bong Joon-ho",
-    "rating": 8.6
-  },
-  {
-    "id": "5", 
-    "title": "Stranger Things",
-    "year": 2016,
-    "genre": "Fantasy", 
-    "category": "TV Show",
-    "director": "The Duffer Brothers",
-    "rating": 8.7
-  },
-  {
-    "id": "6", 
-    "title": "The Matrix",
-    "year": 1999,
-    "genre": "Action", 
-    "category": "Movie",
-    "director": "The Wachowskis",
-    "rating": 8.7
-  },
-  {
-    "id": "7", 
-    "title": "The Dark Knight",
-    "year": 2008,
-    "genre": "Action",
-    "category": "Movie",
-    "director": "Christopher Nolan",
-    "rating": 9.0
-  },
-  {
-    "id": "8",
-    "title": "Game of Thrones",
-    "year": 2011,
-    "genre": "Action", 
-    "category": "TV Show",
-    "director": "David Benioff, D.B. Weiss",
-    "rating": 9.2
-  },
-  {
-    "id": "9", 
-    "title": "Pulp Fiction",
-    "year": 1994,
-    "genre": "Crime",
-    "category": "Movie",
-    "director": "Quentin Tarantino",
-    "rating": 8.9
-  },
-  {
-    "id": "10",
-    "title": "The Office",
-    "year": 2005,
-    "genre": "Comedy",
-    "category": "TV Show",
-    "director": "Greg Daniels",
-    "rating": 9.0
-  }
-]
+class Movie(bm):#creamos el schema de la pelicula
+    id: int
+    title: str
+    year: int
+    genre: str
+    category: str
+    director: str
+    rating: float
+    
+class MovieCreate(bm):
+    id: int = Field(default="2")
+    title: str = Field(min_length=5, max_length=15, default="My Movie")#default es un metodo que se usa para especificar un valor por defecto
+    year: int = Field(le=datetime.date.today().year, ge=1900, default="2024")
+    genre: str= Field(min_length=5, max_length=15, default="Action")
+    category: str= Field(min_length=1, max_length=15, default="A")
+    director: str = Field(min_length=5, max_length=15, default="John Doe")
+    rating: float= Field(le=10.0, ge=0.0, default=5.0)
+# para valores numericos usamos "ge" para especificar que el valor debe ser mayor o igual a un valor y "le" para especificar que el valor debe ser menor o igual a un valor tambien se usan "eq" para especificar que el valor debe ser igual a un valor y "ne" para especificar que el valor debe ser diferente a un valor
+
+class MovieUpdate(bm):
+    title: str
+    year: int
+    genre: str
+    category: str
+    director: str
+    rating: float
+
+movies: List[Movie] = [] #creamos una lista de peliculas
+  
 
 app.title = "API de prueba" # titulo de la API
 app.version = "0.0.1.1" # version de la API
 
 @app.get("/", tags=["Home"]) # los tags se usan para indicar a que grupo pertenece la ruta
-def home():
+def home() :
     return "hola capullo"
 
 @app.get("/movies", tags=["Movies"])
-def get_movies():
-    return movies
+def get_movies() -> List[Movie]:#se especifica que la funcion devuelve una lista de peliculas
+    return [movie.model_dump() for movie in movies]#se devuelve una lista de 
 
-@app.get("/movies/{id}", tags=["Movies"])# el id es un parametro que se pide en la ruta
-def get_movie(id: str):#aqui se especifica que el id es un string
-    for movie in movies:#creamos un bucle para recorrer la lista de peliculas
-        if movie['id'] == id:#si el id de la pelicula es igual al id que se pide en la ruta
-            return movie
-    return []
-
-@app.get("/movies/", tags=["Movies"])#para que sea query se coloca la ruta con dos barras
-def get_movie_by_genre(genre: str, year: int):#para que sea una peticion query de coloca el nombre de la variable y el tipo de dato dentro de la funcion
-    result = []
+@app.get("/movies/{id}", tags=["Movies"])
+def get_movie(id: int) -> Optional[Movie]:
     for movie in movies:
-        if movie['genre'] == genre and movie['year'] == year:
-            result.append(movie)
-    
-    return result
+        if movie.id == id:
+            return movie
+    return None
+
+
+@app.get("/movies/", tags=["Movies"])
+def get_movie_by_genre(genre: str, year: int) -> Movie | None:
+    for movie in movies:
+        if movie.genre == genre and movie.year == year:
+            return movie
+    return None
+# @app.get("/movies/", tags=["Movies"])#para que sea query se coloca la ruta con dos barras
+# def get_movie_by_genre(genre: str, year: int) ->Movie:#para que sea una peticion query de coloca el nombre de la variable y el tipo de dato dentro de la funcion
+#     for movie in movies:
+#         if movie['genre'] == genre and movie['year'] == year:
+#             return movie.model_dump()
+#     return []
 
 @app.post("/movies/", tags=["Movies"])
-def create_movie(id: str = Body(), title: str = Body(), year: int= Body(), genre: str= Body(), category: str= Body(), director: str= Body(), rating: float= Body()):
-    movies.append({
-        "id": id,
-        "title": title,
-        "year": year,
-        "genre": genre,
-        "category": category,
-        "director": director,
-        "rating": rating
-    })
-    
-    return movies
+def create_movie(movie : MovieCreate)-> List[Movie]:
+    movies.append(movie)#solo regitro el objeto en la lista
+    return [movie.model_dump() for movie in movies]
     
 @app.put("/movies/{id}", tags=["Movies"])
-def update_movie( id: str , title: str = Body(), year: int= Body(), genre: str= Body(), category: str= Body(), director: str= Body(), rating: float= Body()):
-    for movie in movies:
-        if movie["id"]==id:
-            movie["title"] = title
-            movie["year"] = year
-            movie["genre"] = genre
-            movie["category"] = category
-            movie["director"] = director
-            movie["rating"] = rating
-        return movies
-    
+def update_movie(id: int, movie: MovieUpdate) -> List[Movie]:
+    for item in movies:
+        if item.id == id:
+            item.title = movie.title
+            item.year = movie.year
+            item.genre = movie.genre
+            item.category = movie.category
+            item.director = movie.director
+            item.rating = movie.rating
+            break
+    return [movie.model_dump() for movie in movies]
 @app.delete("/movies/{id}", tags=["Movies"])
-def delete_movie(id: str):
+def delete_movie(id: int) -> List[Movie]:
     for movie in movies:
-        if movie["id"] == id:
+        if movie.id == id:
             movies.remove(movie)
-        return movies
+        return [movie.model_dump() for movie in movies]
     
     
     
